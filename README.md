@@ -1,6 +1,6 @@
 This is a really simple yt-dlp wrapper made with Python. I also compiled it into an .exe with PyInstaller.
 
-##Usage
+## Usage
 - Enter a YouTube video URL in the first text box and click "Fetch Info"
 - Select a format from the dropdown
 - Select a location to downlaod the file
