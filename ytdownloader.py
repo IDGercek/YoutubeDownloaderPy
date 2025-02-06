@@ -25,19 +25,49 @@ class VideoDownloaderApp:
         self.info_label = ttk.Label(self.root, text="")
         self.info_label.pack(padx=10, pady=5, anchor=tk.W)
         
-        # Format Selection
-        self.format_frame = ttk.Frame(self.root)
-        self.format_frame.pack(padx=10, pady=5, fill=tk.X)
+        # Include Video and Audio Checkboxes
+        self.include_frame = ttk.Frame(self.root)
+        self.include_frame.pack(padx=10, pady=5, fill=tk.X)
         
-        self.format_label = ttk.Label(self.format_frame, text="Select Format:")
-        self.format_label.pack(side=tk.LEFT)
+        self.include_video_var = tk.BooleanVar(value=False)
+        self.include_video_check = ttk.Checkbutton(
+            self.include_frame, text="Include Video", variable=self.include_video_var, command=self.toggle_video_dropdown
+        )
+        self.include_video_check.pack(side=tk.LEFT, padx=(0,10))
         
-        self.format_var = tk.StringVar()
-        self.format_dropdown = ttk.Combobox(self.format_frame, textvariable=self.format_var, state='readonly')
-        self.format_dropdown.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5,0))
-        self.format_dropdown.config(state=tk.DISABLED)  # Disabled initially
+        self.include_audio_var = tk.BooleanVar(value=False)
+        self.include_audio_check = ttk.Checkbutton(
+            self.include_frame, text="Include Audio", variable=self.include_audio_var, command=self.toggle_audio_dropdown
+        )
+        self.include_audio_check.pack(side=tk.LEFT)
         
-        self.format_ids = []
+        # Video Format Selection
+        self.video_frame = ttk.Frame(self.root)
+        self.video_frame.pack(padx=10, pady=5, fill=tk.X)
+        
+        self.video_label = ttk.Label(self.video_frame, text="Video Format:")
+        self.video_label.pack(side=tk.LEFT)
+        
+        self.video_var = tk.StringVar()
+        self.video_dropdown = ttk.Combobox(self.video_frame, textvariable=self.video_var, state='readonly')
+        self.video_dropdown.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5,0))
+        self.video_dropdown.config(state=tk.DISABLED)  # Disabled initially
+        
+        self.video_format_ids = []
+        
+        # Audio Format Selection
+        self.audio_frame = ttk.Frame(self.root)
+        self.audio_frame.pack(padx=10, pady=5, fill=tk.X)
+        
+        self.audio_label = ttk.Label(self.audio_frame, text="Audio Format:")
+        self.audio_label.pack(side=tk.LEFT)
+        
+        self.audio_var = tk.StringVar()
+        self.audio_dropdown = ttk.Combobox(self.audio_frame, textvariable=self.audio_var, state='readonly')
+        self.audio_dropdown.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5,0))
+        self.audio_dropdown.config(state=tk.DISABLED)  # Disabled initially
+        
+        self.audio_format_ids = []
         
         # Save Location
         self.save_frame = ttk.Frame(self.root)
@@ -88,22 +118,16 @@ class VideoDownloaderApp:
                     messagebox.showerror("Error", "Only YouTube videos are supported")
                     return
                 
-                self.format_ids = []
-                format_list = []
+                self.video_format_ids = []
+                self.audio_format_ids = []
+                video_format_list = []
+                audio_format_list = []
                 
                 for f in info['formats']:
                     if f.get('video_ext') != 'none' or f.get('audio_ext') != 'none':
                         # Determine stream type
                         has_video = f.get('vcodec') != 'none'
                         has_audio = f.get('acodec') != 'none'
-                        if has_video and has_audio:
-                            stream_type = "Video+Audio"
-                        elif has_video:
-                            stream_type = "Video Only"
-                        elif has_audio:
-                            stream_type = "Audio Only"
-                        else:
-                            continue
                         
                         # Get resolution, framerate, filesize, and codecs
                         resolution = f.get('resolution', 'N/A')
@@ -113,17 +137,22 @@ class VideoDownloaderApp:
                         video_codec = f.get('vcodec', 'N/A').split('.')[0]  # Simplify codec name
                         audio_codec = f.get('acodec', 'N/A').split('.')[0]  # Simplify codec name
                         
-                        # Format dropdown entry
-                        format_entry = (
-                            f"{stream_type} | {f['ext']} | {resolution} | {framerate}fps | {filesize_mb} | "
-                            f"Video: {video_codec} | Audio: {audio_codec}"
-                        )
-                        format_list.append(format_entry)
-                        self.format_ids.append(f['format_id'])
+                        # Add to video or audio format list
+                        if has_video:
+                            video_format_list.append(
+                                f"{resolution} | {framerate}fps | {filesize_mb} | {f['ext']} | Video: {video_codec}"
+                            )
+                            self.video_format_ids.append(f['format_id'])
+                        if has_audio:
+                            audio_format_list.append(
+                                f"{filesize_mb} | {f['ext']} | Audio: {audio_codec}"
+                            )
+                            self.audio_format_ids.append(f['format_id'])
                 
-                self.format_dropdown['values'] = format_list
-                if format_list:
-                    self.format_var.set(format_list[0])
+                self.video_dropdown['values'] = video_format_list
+                self.audio_dropdown['values'] = audio_format_list
+                
+                if video_format_list or audio_format_list:
                     self.enable_controls()  # Enable controls after successful fetch
                 else:
                     messagebox.showerror("Error", "No valid formats available")
@@ -132,9 +161,24 @@ class VideoDownloaderApp:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to fetch video info: {str(e)}")
     
+    def toggle_video_dropdown(self):
+        """Enable or disable the video dropdown based on the checkbox."""
+        if self.include_video_var.get():
+            self.video_dropdown.config(state=tk.NORMAL)
+        else:
+            self.video_dropdown.config(state=tk.DISABLED)
+    
+    def toggle_audio_dropdown(self):
+        """Enable or disable the audio dropdown based on the checkbox."""
+        if self.include_audio_var.get():
+            self.audio_dropdown.config(state=tk.NORMAL)
+        else:
+            self.audio_dropdown.config(state=tk.DISABLED)
+    
     def enable_controls(self):
         """Enable format selection, save location, and download controls."""
-        self.format_dropdown.config(state=tk.NORMAL)
+        self.video_dropdown.config(state=tk.NORMAL if self.include_video_var.get() else tk.DISABLED)
+        self.audio_dropdown.config(state=tk.NORMAL if self.include_audio_var.get() else tk.DISABLED)
         self.save_entry.config(state=tk.NORMAL)
         self.save_button.config(state=tk.NORMAL)
         self.download_button.config(state=tk.NORMAL)
@@ -146,29 +190,53 @@ class VideoDownloaderApp:
             self.save_entry.insert(0, self.save_path)
     
     def start_download(self):
-        selected_index = self.format_dropdown.current()
-        if selected_index == -1 or selected_index >= len(self.format_ids):
-            messagebox.showerror("Error", "Please select a valid format")
+        if not self.include_video_var.get() and not self.include_audio_var.get():
+            messagebox.showerror("Error", "Please select at least one of Video or Audio")
             return
         
         if not self.save_path:
             messagebox.showerror("Error", "Please select a save location")
             return
         
-        format_id = self.format_ids[selected_index]
+        video_format_id = None
+        audio_format_id = None
+        
+        if self.include_video_var.get():
+            selected_video_index = self.video_dropdown.current()
+            if selected_video_index == -1 or selected_video_index >= len(self.video_format_ids):
+                messagebox.showerror("Error", "Please select a valid video format")
+                return
+            video_format_id = self.video_format_ids[selected_video_index]
+        
+        if self.include_audio_var.get():
+            selected_audio_index = self.audio_dropdown.current()
+            if selected_audio_index == -1 or selected_audio_index >= len(self.audio_format_ids):
+                messagebox.showerror("Error", "Please select a valid audio format")
+                return
+            audio_format_id = self.audio_format_ids[selected_audio_index]
+        
         url = self.url_entry.get().strip()
         
         self.fetch_button.config(state=tk.DISABLED)
         self.download_button.config(state=tk.DISABLED)
         
-        threading.Thread(target=self.download_video, args=(url, format_id), daemon=True).start()
+        threading.Thread(target=self.download_video, args=(url, video_format_id, audio_format_id), daemon=True).start()
     
-    def download_video(self, url, format_id):
+    def download_video(self, url, video_format_id, audio_format_id):
         ydl_opts = {
-            'format': format_id,
             'outtmpl': f"{self.save_path}/%(title)s.%(ext)s",
             'progress_hooks': [self.progress_hook],
         }
+        
+        if video_format_id and audio_format_id:
+            # Merge video and audio
+            ydl_opts['format'] = f"{video_format_id}+{audio_format_id}"
+        elif video_format_id:
+            # Download video only
+            ydl_opts['format'] = video_format_id
+        elif audio_format_id:
+            # Download audio only
+            ydl_opts['format'] = audio_format_id
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
